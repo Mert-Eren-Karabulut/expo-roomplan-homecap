@@ -190,10 +190,16 @@ class RoomPlanCaptureUIView: ExpoView, RoomCaptureSessionDelegate, RoomCaptureVi
         if exportType == "MESH" { finalExportType = .mesh }
         if exportType == "MODEL" { finalExportType = .model }
 
-        let jsonEncoder = JSONEncoder()
-        let jsonData = try jsonEncoder.encode(structure)
-        try jsonData.write(to: capturedRoomURL)
-        try structure.export(to: destinationURL, exportOptions: finalExportType)
+        // let jsonEncoder = JSONEncoder()
+        // let jsonData = try jsonEncoder.encode(structure)
+        // try jsonData.write(to: capturedRoomURL)
+        // try structure.export(to: destinationURL, exportOptions: finalExportType)
+        try structure.export(
+            to: destinationURL,
+            metadataURL: capturedRoomURL,
+            modelProvider: nil,
+            exportOptions: finalExportType
+        )
 
         if sendFileLoc {
           self.onExported([

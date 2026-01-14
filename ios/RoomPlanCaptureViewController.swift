@@ -308,14 +308,19 @@ class RoomPlanCaptureViewController: UIViewController, RoomCaptureViewDelegate,
                     finalExportType = CapturedRoom.USDExportOptions.model;
                 }
 
-                let jsonEncoder = JSONEncoder()
-                let jsonData = try jsonEncoder.encode(finalStructure)
-                try jsonData.write(to: capturedRoomURL)
+                // let jsonEncoder = JSONEncoder()
+                // let jsonData = try jsonEncoder.encode(finalStructure)
+                // try jsonData.write(to: capturedRoomURL)
+                // try finalStructure?.export(
+                //     to: destinationURL,
+                //     exportOptions: finalExportType
+                // )
                 try finalStructure?.export(
                     to: destinationURL,
+                    metadataURL: capturedRoomURL,
+                    modelProvider: nil,
                     exportOptions: finalExportType
                 )
-
                 // reset finalStructure before sending data
                 finalStructure = nil
                 
