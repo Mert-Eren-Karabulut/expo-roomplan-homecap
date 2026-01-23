@@ -308,19 +308,18 @@ class RoomPlanCaptureViewController: UIViewController, RoomCaptureViewDelegate,
                     finalExportType = CapturedRoom.USDExportOptions.model;
                 }
 
-                // let jsonEncoder = JSONEncoder()
-                // let jsonData = try jsonEncoder.encode(finalStructure)
-                // try jsonData.write(to: capturedRoomURL)
-                // try finalStructure?.export(
-                //     to: destinationURL,
-                //     exportOptions: finalExportType
-                // )
+                // Use JSONEncoder to get the full CapturedStructure data (doors, walls, transforms, dimensions, etc.)
+                // metadataURL only exports USDZ metadata (UUID mappings), not the detailed room structure
+                let jsonEncoder = JSONEncoder()
+                let jsonData = try jsonEncoder.encode(finalStructure)
+                try jsonData.write(to: capturedRoomURL)
+                
+                // Export the USDZ file separately
                 try finalStructure?.export(
                     to: destinationURL,
-                    metadataURL: capturedRoomURL,
-                    modelProvider: nil,
                     exportOptions: finalExportType
                 )
+                
                 // reset finalStructure before sending data
                 finalStructure = nil
                 

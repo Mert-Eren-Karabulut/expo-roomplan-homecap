@@ -190,16 +190,14 @@ class RoomPlanCaptureUIView: ExpoView, RoomCaptureSessionDelegate, RoomCaptureVi
         if exportType == "MESH" { finalExportType = .mesh }
         if exportType == "MODEL" { finalExportType = .model }
 
-        // let jsonEncoder = JSONEncoder()
-        // let jsonData = try jsonEncoder.encode(structure)
-        // try jsonData.write(to: capturedRoomURL)
-        // try structure.export(to: destinationURL, exportOptions: finalExportType)
-        try structure.export(
-            to: destinationURL,
-            metadataURL: capturedRoomURL,
-            modelProvider: nil,
-            exportOptions: finalExportType
-        )
+        // Use JSONEncoder to get the full CapturedStructure data (doors, walls, transforms, dimensions, etc.)
+        // metadataURL only exports USDZ metadata (UUID mappings), not the detailed room structure
+        let jsonEncoder = JSONEncoder()
+        let jsonData = try jsonEncoder.encode(structure)
+        try jsonData.write(to: capturedRoomURL)
+        
+        // Export the USDZ file separately
+        try structure.export(to: destinationURL, exportOptions: finalExportType)
 
         if sendFileLoc {
           self.onExported([
@@ -207,8 +205,8 @@ class RoomPlanCaptureUIView: ExpoView, RoomCaptureSessionDelegate, RoomCaptureVi
             "jsonUrl": capturedRoomURL.absoluteString
           ])
         }
-  // Also emit a final OK status after export
-  self.sendStatus(.OK)
+        // Also emit a final OK status after export
+        self.sendStatus(.OK)
       } catch {
         self.sendError("Export failed: \(error.localizedDescription)")
       }
