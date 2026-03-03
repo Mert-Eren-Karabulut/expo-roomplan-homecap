@@ -31,4 +31,7 @@ Pod::Spec.new do |s|
 
   s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
 
+  # Include the RoomPlanCatalog.bundle (3D furniture models for .model export)
+  s.resources = ['RoomPlanCatalog.bundle']
+
 end

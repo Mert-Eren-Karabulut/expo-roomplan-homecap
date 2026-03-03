@@ -177,7 +177,6 @@ class RoomPlanCaptureUIView: ExpoView, RoomCaptureSessionDelegate, RoomCaptureVi
     let exportedScanName = scanName ?? "Room"
 
     let destinationFolderURL = FileManager.default.temporaryDirectory.appending(path: "Export")
-    let destinationURL = destinationFolderURL.appending(path: "\(exportedScanName).usdz")
     let capturedRoomURL = destinationFolderURL.appending(path: "\(exportedScanName).json")
 
     Task {
@@ -186,22 +185,37 @@ class RoomPlanCaptureUIView: ExpoView, RoomCaptureSessionDelegate, RoomCaptureVi
 
         try FileManager.default.createDirectory(at: destinationFolderURL, withIntermediateDirectories: true)
 
+        // Determine export type
         var finalExportType = CapturedRoom.USDExportOptions.parametric
         if exportType == "MESH" { finalExportType = .mesh }
         if exportType == "MODEL" { finalExportType = .model }
 
         // Use JSONEncoder to get the full CapturedStructure data (doors, walls, transforms, dimensions, etc.)
-        // metadataURL only exports USDZ metadata (UUID mappings), not the detailed room structure
         let jsonEncoder = JSONEncoder()
         let jsonData = try jsonEncoder.encode(structure)
         try jsonData.write(to: capturedRoomURL)
-        
-        // Export the USDZ file separately
-        try structure.export(to: destinationURL, exportOptions: finalExportType)
+
+        // Single USDZ export
+        let usdzURL = destinationFolderURL.appending(path: "\(exportedScanName).usdz")
+
+        if finalExportType == .model {
+          // For .model exports, load ModelProvider to substitute 3D furniture models.
+          // Apple does NOT provide built-in defaults – we load from RoomPlanCatalog.bundle.
+          // See: https://developer.apple.com/documentation/roomplan/providing-custom-models-for-captured-rooms-and-structure-exports
+          let modelProvider = Self.buildModelProvider()
+          if let modelProvider = modelProvider {
+            try structure.export(to: usdzURL, modelProvider: modelProvider, exportOptions: .model)
+          } else {
+            // Fallback: export .model without provider (bounding boxes only)
+            try structure.export(to: usdzURL, exportOptions: .model)
+          }
+        } else {
+          try structure.export(to: usdzURL, exportOptions: finalExportType)
+        }
 
         if sendFileLoc {
           self.onExported([
-            "scanUrl": destinationURL.absoluteString,
+            "scanUrl": usdzURL.absoluteString,
             "jsonUrl": capturedRoomURL.absoluteString
           ])
         }
@@ -220,5 +234,27 @@ class RoomPlanCaptureUIView: ExpoView, RoomCaptureSessionDelegate, RoomCaptureVi
 
   private func sendError(_ message: String) {
     self.onStatus(["status": ScanStatus.Error.rawValue, "errorMessage": message])
+  }
+
+  // MARK: - Model Provider
+  /// Builds a CapturedRoom.ModelProvider by loading the RoomPlanCatalog.bundle
+  /// that contains 3D furniture models (.usdc files) for detected object categories.
+  ///
+  /// The catalog maps categories (sofa, table, chair, etc.) and their attributes
+  /// (e.g. dining table with rectangular shape) to specific 3D model files.
+  ///
+  /// If the catalog bundle is not found or fails to load, returns nil
+  /// (furniture will appear as bounding boxes in the .model export).
+  ///
+  /// See: https://developer.apple.com/documentation/roomplan/providing-custom-models-for-captured-rooms-and-structure-exports
+  private static func buildModelProvider() -> CapturedRoom.ModelProvider? {
+    do {
+      let provider = try CapturedRoom.ModelProvider.loadFromCatalog()
+      return provider
+    } catch {
+      print("[RoomPlan] Failed to load model catalog: \(error.localizedDescription)")
+      print("[RoomPlan] Furniture will appear as bounding boxes in .model export.")
+      return nil
+    }
   }
 }

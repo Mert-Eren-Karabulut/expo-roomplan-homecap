@@ -309,17 +309,33 @@ class RoomPlanCaptureViewController: UIViewController, RoomCaptureViewDelegate,
                 }
 
                 // Use JSONEncoder to get the full CapturedStructure data (doors, walls, transforms, dimensions, etc.)
-                // metadataURL only exports USDZ metadata (UUID mappings), not the detailed room structure
                 let jsonEncoder = JSONEncoder()
                 let jsonData = try jsonEncoder.encode(finalStructure)
                 try jsonData.write(to: capturedRoomURL)
                 
-                // Export the USDZ file separately
-                try finalStructure?.export(
-                    to: destinationURL,
-                    exportOptions: finalExportType
-                )
-                
+                // Single USDZ export
+                if finalExportType == .model {
+                    // For .model exports, load ModelProvider to substitute 3D furniture models.
+                    let modelProvider = Self.buildModelProvider()
+                    if let modelProvider = modelProvider {
+                        try finalStructure?.export(
+                            to: destinationURL,
+                            modelProvider: modelProvider,
+                            exportOptions: .model
+                        )
+                    } else {
+                        try finalStructure?.export(
+                            to: destinationURL,
+                            exportOptions: .model
+                        )
+                    }
+                } else {
+                    try finalStructure?.export(
+                        to: destinationURL,
+                        exportOptions: finalExportType
+                    )
+                }
+
                 // reset finalStructure before sending data
                 finalStructure = nil
                 
@@ -360,7 +376,7 @@ class RoomPlanCaptureViewController: UIViewController, RoomCaptureViewDelegate,
     }
 
     func sendScanResultAndDismiss(status: ScanStatus? = nil, scanUrl: String? = nil, jsonUrl: String? = nil) {
-        var eventData: [String: Any] = [:]
+        var eventData: [String: Any] = []
         
         if let status = status {
             eventData["status"] = status.rawValue
@@ -487,6 +503,23 @@ class RoomPlanCaptureViewController: UIViewController, RoomCaptureViewDelegate,
     @objc
     static func requiresMainQueueSetup() -> Bool {
         return true
+    }
+
+    // MARK: - Model Provider
+    /// Builds a CapturedRoom.ModelProvider by loading the RoomPlanCatalog.bundle
+    /// that contains 3D furniture models (.usdc files) for detected object categories.
+    ///
+    /// If the catalog bundle is not found or fails to load, returns nil
+    /// (furniture will appear as bounding boxes in the .model export).
+    static func buildModelProvider() -> CapturedRoom.ModelProvider? {
+        do {
+            let provider = try CapturedRoom.ModelProvider.loadFromCatalog()
+            return provider
+        } catch {
+            print("[RoomPlan] Failed to load model catalog: \(error.localizedDescription)")
+            print("[RoomPlan] Furniture will appear as bounding boxes in .model export.")
+            return nil
+        }
     }
 }
 
