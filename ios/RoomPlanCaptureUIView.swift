@@ -204,12 +204,15 @@ class RoomPlanCaptureUIView: ExpoView, RoomCaptureSessionDelegate, RoomCaptureVi
           // See: https://developer.apple.com/documentation/roomplan/providing-custom-models-for-captured-rooms-and-structure-exports
           let modelProvider = Self.buildModelProvider()
           if let modelProvider = modelProvider {
+            NSLog("[RoomPlan] Exporting .model WITH modelProvider")
             try structure.export(to: usdzURL, modelProvider: modelProvider, exportOptions: .model)
           } else {
+            NSLog("[RoomPlan] ⚠️ Exporting .model WITHOUT modelProvider (bounding boxes only)")
             // Fallback: export .model without provider (bounding boxes only)
             try structure.export(to: usdzURL, exportOptions: .model)
           }
         } else {
+          NSLog("[RoomPlan] Exporting with type: %@", exportType ?? "parametric")
           try structure.export(to: usdzURL, exportOptions: finalExportType)
         }
 
@@ -248,12 +251,33 @@ class RoomPlanCaptureUIView: ExpoView, RoomCaptureSessionDelegate, RoomCaptureVi
   ///
   /// See: https://developer.apple.com/documentation/roomplan/providing-custom-models-for-captured-rooms-and-structure-exports
   private static func buildModelProvider() -> CapturedRoom.ModelProvider? {
+    // Debug: check if bundle exists in main bundle
+    if let catalogURL = Bundle.main.url(forResource: "RoomPlanCatalog", withExtension: "bundle") {
+      NSLog("[RoomPlan] ✅ Found RoomPlanCatalog.bundle at: %@", catalogURL.path)
+      // Check if catalog.plist exists inside
+      let plistURL = catalogURL.appending(path: "catalog.plist")
+      if FileManager.default.fileExists(atPath: plistURL.path(percentEncoded: false)) {
+        NSLog("[RoomPlan] ✅ catalog.plist exists inside bundle")
+      } else {
+        NSLog("[RoomPlan] ❌ catalog.plist NOT found inside bundle")
+      }
+    } else {
+      NSLog("[RoomPlan] ❌ RoomPlanCatalog.bundle NOT found in Bundle.main")
+      NSLog("[RoomPlan] Bundle.main path: %@", Bundle.main.bundlePath)
+      // List top-level .bundle resources to debug
+      if let items = try? FileManager.default.contentsOfDirectory(atPath: Bundle.main.bundlePath) {
+        let bundles = items.filter { $0.hasSuffix(".bundle") }
+        NSLog("[RoomPlan] Available bundles in main: %@", bundles.description)
+      }
+      return nil
+    }
+
     do {
       let provider = try CapturedRoom.ModelProvider.loadFromCatalog()
+      NSLog("[RoomPlan] ✅ ModelProvider loaded successfully from catalog")
       return provider
     } catch {
-      print("[RoomPlan] Failed to load model catalog: \(error.localizedDescription)")
-      print("[RoomPlan] Furniture will appear as bounding boxes in .model export.")
+      NSLog("[RoomPlan] ❌ Failed to load model catalog: %@", error.localizedDescription)
       return nil
     }
   }

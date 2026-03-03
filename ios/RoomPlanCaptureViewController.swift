@@ -376,7 +376,7 @@ class RoomPlanCaptureViewController: UIViewController, RoomCaptureViewDelegate,
     }
 
     func sendScanResultAndDismiss(status: ScanStatus? = nil, scanUrl: String? = nil, jsonUrl: String? = nil) {
-        var eventData: [String: Any] = []
+        var eventData: [String: Any] = [:]
         
         if let status = status {
             eventData["status"] = status.rawValue
